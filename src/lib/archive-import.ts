@@ -362,6 +362,19 @@ function clearImportedData() {
     delete from profiles;
     delete from accounts;
   `);
+	clearAuthoredSyncCursors(db);
+}
+
+function clearAuthoredSyncCursors(db = getNativeDb(), accountId?: string) {
+	if (accountId) {
+		db.prepare("delete from sync_cache where cache_key = ?").run(
+			`authored:xurl:${accountId}:cursor`,
+		);
+		return;
+	}
+	db.prepare(
+		"delete from sync_cache where cache_key like 'authored:xurl:%:cursor'",
+	).run();
 }
 
 export async function importArchive(
@@ -1940,6 +1953,7 @@ export async function importArchive(
 	db.transaction(() => {
 		if (selection) {
 			if (includeTweets) {
+				clearAuthoredSyncCursors(db, "acct_primary");
 				demoteSelectedArchiveTweetsWithCollections.run(
 					"acct_primary",
 					"acct_primary",

@@ -65,6 +65,7 @@ birdclaw auth use <transport>
 birdclaw import archive [path]
 birdclaw sync all
 birdclaw sync tweets
+birdclaw sync authored
 birdclaw sync dms
 birdclaw sync bookmarks
 birdclaw sync likes
@@ -251,6 +252,7 @@ birdclaw import archive ~/Downloads/twitter-archive.zip --select followers,follo
 - refresh cursors
 - refresh FTS incrementally
 - `sync likes` and `sync bookmarks` use cached live transport; `auto` tries `xurl`, then `bird`; `--early-stop` caps at 10 pages unless paired with `--all` or `--max-pages`
+- `sync authored` uses `xurl`, includes retweets, and resumes from a stored `since_id`
 - `sync timeline` stores the live home timeline through `bird`; it defaults to the chronological Following feed
 - `sync mention-threads` fetches conversation context for recent mentions through `bird thread`; use `--delay-ms` and `--timeout-ms` to stay gentle on live X
 - `sync followers` and `sync following` default to dry-run and require `--yes` for live sync or fresh-cache merge; `auto` prefers `bird`, then falls back to `xurl`
@@ -271,6 +273,7 @@ Common flags:
 Examples:
 
 ```bash
+birdclaw sync authored --mode xurl --limit 100 --json
 birdclaw sync likes --mode auto --limit 100 --refresh --json
 birdclaw sync likes --mode auto --limit 100 --max-pages 5 --early-stop --refresh --json
 birdclaw sync bookmarks --mode auto --limit 100 --refresh --json

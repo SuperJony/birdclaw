@@ -23,7 +23,7 @@ Status: WIP. Real and usable. Not done. Expect schema churn, transport gaps, and
 - archive import for tweets, likes, followers/following, profiles, and full DMs
 - selective archive re-imports for one stale slice without wiping the rest of the local store
 - archive import for bookmark exports when present
-- live likes and bookmarks sync through `xurl` or `bird`
+- live authored sync through `xurl`, plus likes and bookmarks through `xurl` or `bird`
 - cache-first followers/following sync through `bird` or `xurl`
 - local follow graph queries for top followers, unfollows, mutuals, and non-mutual following
 - Git-friendly text backups with yearly tweet shards and per-conversation DM shards
@@ -223,11 +223,12 @@ pnpm cli search tweets --liked --limit 20 --json
 pnpm cli search tweets --bookmarked --limit 20 --json
 ```
 
-### Sync likes, bookmarks, and home timeline
+### Sync authored tweets, likes, bookmarks, and home timeline
 
 `auto` tries `xurl` first for likes/bookmarks, then falls back to `bird`. Use `bird` directly when the API path is unavailable for the account/token you have locally. For repeated xurl collection syncs, add `--early-stop` to stop paging once a whole page already exists locally; without `--all` or `--max-pages`, it caps at 10 pages.
 
 ```bash
+pnpm cli sync authored --mode xurl --limit 100 --json
 pnpm cli sync likes --mode auto --limit 100 --refresh --json
 pnpm cli sync bookmarks --mode auto --limit 100 --refresh --json
 pnpm cli sync likes --mode auto --limit 100 --max-pages 5 --early-stop --refresh --json
@@ -301,7 +302,7 @@ Notes:
 - `actions.transport` accepts `auto`, `bird`, or `xurl`
 - `bird` mode uses your local `bird` CLI and caches its mentions output into birdclaw's canonical store
 - filters still work in `xurl` mode; filtered payloads are rebuilt from the local canonical store after sync
-- `sync likes`, `sync bookmarks`, `sync timeline`, and `sync mention-threads` store live results in the canonical local store; per-account home/mention/like/bookmark membership is kept as edges so shared tweets do not clobber account ownership
+- `sync authored`, `sync likes`, `sync bookmarks`, `sync timeline`, and `sync mention-threads` store live results in the canonical local store; per-account authored/home/mention/like/bookmark membership is kept as edges so shared tweets do not clobber account ownership
 
 ### Research bookmarks and threads
 

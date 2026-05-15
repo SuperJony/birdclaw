@@ -4,6 +4,11 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+const extraAllowedHosts =
+	process.env.BIRDCLAW_ALLOWED_HOSTS?.split(",")
+		.map((host) => host.trim())
+		.filter(Boolean) ?? [];
+
 const config = defineConfig({
 	plugins: [
 		devtools(),
@@ -17,6 +22,9 @@ const config = defineConfig({
 	],
 	resolve: {
 		tsconfigPaths: true,
+	},
+	server: {
+		allowedHosts: ["clawmac.sheep-coho.ts.net", ...extraAllowedHosts],
 	},
 });
 

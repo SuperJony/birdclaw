@@ -85,6 +85,7 @@ See [Backup](backup.md). When `autoSync` is enabled, read commands pull + merge 
 | `BIRDCLAW_PROFILE` | Pick a non-default profile/account |
 | `BIRDCLAW_TRANSPORT` | Force `auto`, `xurl`, `bird`, `official`, or `xweb` for one process |
 | `BIRDCLAW_LOG` | Increase log verbosity |
+| `BIRDCLAW_ALLOWED_HOSTS` | Comma-separated extra Vite dev-server hostnames for `birdclaw serve` behind a trusted reverse proxy |
 | `BIRDCLAW_DISABLE_LIVE_WRITES` | Set to `1` to block any live mutation (used by tests and CI) |
 | `BIRDCLAW_BACKUP_AUTO_SYNC` | Set to `0` to disable auto-sync for one process |
 | `NO_COLOR` | Disable ANSI color in human output |

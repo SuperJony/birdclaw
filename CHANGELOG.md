@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Allow the local web app to respond when Tailscale Serve forwards requests through the `clawmac.sheep-coho.ts.net` hostname.
 - Speed up the default home timeline load on large local databases and keep malformed archived media URL entities from crashing the web timeline.
 - Preserve tweet media aspect ratios, open timeline media in an inline viewer, and suppress duplicate media URL cards.
 

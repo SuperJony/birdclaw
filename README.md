@@ -256,6 +256,8 @@ Start the app:
 birdclaw serve
 ```
 
+When running behind a trusted reverse proxy such as Tailscale Serve, add any extra proxy hostnames to `BIRDCLAW_ALLOWED_HOSTS`. The clawmac Tailscale hostname is allowed by default.
+
 First moderation pass:
 
 ```bash

@@ -87,7 +87,11 @@ test("manual sync controls post to the sync endpoint", async ({ page }) => {
 		});
 	});
 
-	async function clickSync(path: string, buttonName: string) {
+	async function clickSync(
+		path: string,
+		buttonName: string,
+		expectedBody: { kind: string; accountId?: string },
+	) {
 		const statusReady = page.waitForResponse(
 			(response) =>
 				response.url().includes("/api/status") &&
@@ -104,18 +108,27 @@ test("manual sync controls post to the sync endpoint", async ({ page }) => {
 		await Promise.all([statusReady, routeDataReady]);
 		const button = page.getByRole("button", { name: buttonName });
 		await expect(button).toBeEnabled();
-		const request = page.waitForRequest(
-			(req) => req.url().includes("/api/sync") && req.method() === "POST",
-		);
+		const before = syncBodies.length;
 		await button.click();
-		await request;
+		await expect
+			.poll(() => syncBodies.slice(before), { timeout: 10_000 })
+			.toEqual([expectedBody]);
 	}
 
-	await clickSync("/", "Sync timeline");
-	await clickSync("/mentions", "Sync mentions");
-	await clickSync("/likes", "Sync likes");
-	await clickSync("/bookmarks", "Sync bookmarks");
-	await clickSync("/dms", "Sync DMs");
+	await clickSync("/", "Sync timeline", { kind: "timeline" });
+	await clickSync("/mentions", "Sync mentions", {
+		kind: "mentions",
+		accountId: "acct_primary",
+	});
+	await clickSync("/likes", "Sync likes", {
+		kind: "likes",
+		accountId: "acct_primary",
+	});
+	await clickSync("/bookmarks", "Sync bookmarks", {
+		kind: "bookmarks",
+		accountId: "acct_primary",
+	});
+	await clickSync("/dms", "Sync DMs", { kind: "dms" });
 
 	await expect
 		.poll(() => syncBodies)

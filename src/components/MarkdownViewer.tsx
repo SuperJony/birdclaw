@@ -1,0 +1,253 @@
+import { Fragment, type ReactNode } from "react";
+import { formatCompactNumber, formatShortTimestamp } from "#/lib/present";
+import type { PeriodDigestContext } from "#/lib/period-digest";
+import type { ProfileRecord } from "#/lib/types";
+import { cx, tweetMentionClass } from "#/lib/ui";
+import { AvatarChip } from "./AvatarChip";
+import { ProfilePreview } from "./ProfilePreview";
+
+type InlineLookup = {
+	tweetsById: Map<string, PeriodDigestContext["tweets"][number]>;
+	profilesByHandle: Map<string, ProfileRecord>;
+};
+
+function trimBullet(value: string) {
+	return value.replace(/^[-*]\s+/, "");
+}
+
+function getTweetUrl(tweet: PeriodDigestContext["tweets"][number]) {
+	return tweet.url || `https://x.com/${tweet.author}/status/${tweet.id}`;
+}
+
+function TweetPreviewToken({
+	tweet,
+	children,
+}: {
+	tweet: PeriodDigestContext["tweets"][number];
+	children: ReactNode;
+}) {
+	return (
+		<span className="group/digest-tweet relative inline-flex align-baseline">
+			<a
+				className="rounded-sm px-0.5 font-mono text-[0.9em] text-[var(--accent)] hover:bg-[var(--accent-soft)] hover:no-underline"
+				href={getTweetUrl(tweet)}
+				rel="noreferrer"
+				target="_blank"
+			>
+				{children}
+			</a>
+			<span className="absolute left-1/2 top-[calc(100%+10px)] z-40 hidden w-[360px] -translate-x-1/2 rounded-2xl border border-[var(--line)] bg-[var(--bg-elevated)] p-3 text-left text-[14px] leading-[1.4] text-[var(--ink)] shadow-[0_14px_40px_var(--shadow-strong)] group-hover/digest-tweet:block group-focus-within/digest-tweet:block">
+				<span className="mb-2 flex items-center gap-2">
+					<AvatarChip
+						avatarUrl={tweet.authorProfile.avatarUrl}
+						hue={tweet.authorProfile.avatarHue}
+						name={tweet.name}
+						profileId={tweet.authorProfile.id}
+						size="small"
+					/>
+					<span className="min-w-0">
+						<span className="block truncate font-bold">{tweet.name}</span>
+						<span className="block truncate text-[12px] text-[var(--ink-soft)]">
+							@{tweet.author} · {formatShortTimestamp(tweet.createdAt)}
+						</span>
+					</span>
+				</span>
+				<span className="line-clamp-6 whitespace-pre-wrap [overflow-wrap:anywhere]">
+					{tweet.text}
+				</span>
+				<span className="mt-2 flex gap-3 text-[12px] text-[var(--ink-soft)]">
+					<span>{tweet.source}</span>
+					{tweet.likeCount > 0 ? (
+						<span>{formatCompactNumber(tweet.likeCount)} likes</span>
+					) : null}
+					{tweet.needsReply ? <span>reply open</span> : null}
+				</span>
+			</span>
+		</span>
+	);
+}
+
+function renderInline(text: string, lookup: InlineLookup) {
+	const pattern =
+		/(\*\*[^*]+\*\*|@[A-Za-z0-9_]{1,20}|\b\d{12,25}\b|tweet_[A-Za-z0-9_:-]+)/g;
+	const nodes: ReactNode[] = [];
+	let cursor = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = pattern.exec(text))) {
+		const token = match[0];
+		if (match.index > cursor) {
+			nodes.push(text.slice(cursor, match.index));
+		}
+		cursor = match.index + token.length;
+
+		if (token.startsWith("**") && token.endsWith("**")) {
+			nodes.push(
+				<strong key={`${token}-${String(match.index)}`}>
+					{token.slice(2, -2)}
+				</strong>,
+			);
+			continue;
+		}
+
+		if (token.startsWith("@")) {
+			const profile = lookup.profilesByHandle.get(token.slice(1).toLowerCase());
+			nodes.push(
+				profile ? (
+					<ProfilePreview
+						key={`${token}-${String(match.index)}`}
+						profile={profile}
+					>
+						<span className={tweetMentionClass}>{token}</span>
+					</ProfilePreview>
+				) : (
+					<a
+						key={`${token}-${String(match.index)}`}
+						className={tweetMentionClass}
+						href={`https://x.com/${token.slice(1)}`}
+						rel="noreferrer"
+						target="_blank"
+					>
+						{token}
+					</a>
+				),
+			);
+			continue;
+		}
+
+		const tweet = lookup.tweetsById.get(token);
+		nodes.push(
+			tweet ? (
+				<TweetPreviewToken
+					key={`${token}-${String(match.index)}`}
+					tweet={tweet}
+				>
+					{token}
+				</TweetPreviewToken>
+			) : (
+				token
+			),
+		);
+	}
+
+	if (cursor < text.length) {
+		nodes.push(text.slice(cursor));
+	}
+
+	return nodes.map((node, index) => (
+		<Fragment
+			key={typeof node === "string" ? `${node}-${String(index)}` : index}
+		>
+			{node}
+		</Fragment>
+	));
+}
+
+function buildLookup(context?: PeriodDigestContext | null): InlineLookup {
+	const tweetsById = new Map<string, PeriodDigestContext["tweets"][number]>();
+	const profilesByHandle = new Map<string, ProfileRecord>();
+	for (const tweet of context?.tweets ?? []) {
+		tweetsById.set(tweet.id, tweet);
+		profilesByHandle.set(tweet.author.toLowerCase(), tweet.authorProfile);
+	}
+	return { tweetsById, profilesByHandle };
+}
+
+export function MarkdownViewer({
+	markdown,
+	context,
+	className,
+}: {
+	markdown: string;
+	context?: PeriodDigestContext | null;
+	className?: string;
+}) {
+	const lookup = buildLookup(context);
+	const lines = markdown.split(/\r?\n/);
+	const nodes: ReactNode[] = [];
+	let listItems: ReactNode[][] = [];
+
+	const flushList = () => {
+		if (listItems.length === 0) return;
+		nodes.push(
+			<ul
+				className="my-3 flex list-disc flex-col gap-2 pl-5 marker:text-[var(--ink-soft)]"
+				key={`list-${String(nodes.length)}`}
+			>
+				{listItems.map((item, index) => (
+					<li key={String(index)}>{item}</li>
+				))}
+			</ul>,
+		);
+		listItems = [];
+	};
+
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed) {
+			flushList();
+			continue;
+		}
+		if (trimmed.startsWith("### ")) {
+			flushList();
+			nodes.push(
+				<h3
+					className="mt-6 mb-2 text-[14px] font-bold uppercase tracking-wide text-[var(--ink-soft)]"
+					key={`h3-${String(nodes.length)}`}
+				>
+					{renderInline(trimmed.slice(4), lookup)}
+				</h3>,
+			);
+			continue;
+		}
+		if (trimmed.startsWith("## ")) {
+			flushList();
+			nodes.push(
+				<h2
+					className="mt-7 mb-2 text-[18px] font-bold text-[var(--ink)]"
+					key={`h2-${String(nodes.length)}`}
+				>
+					{renderInline(trimmed.slice(3), lookup)}
+				</h2>,
+			);
+			continue;
+		}
+		if (trimmed.startsWith("# ")) {
+			flushList();
+			nodes.push(
+				<h1
+					className="mt-2 mb-3 text-[20px] font-bold text-[var(--ink)]"
+					key={`h1-${String(nodes.length)}`}
+				>
+					{renderInline(trimmed.slice(2), lookup)}
+				</h1>,
+			);
+			continue;
+		}
+		if (/^[-*]\s+/.test(trimmed)) {
+			listItems.push(renderInline(trimBullet(trimmed), lookup));
+			continue;
+		}
+		flushList();
+		nodes.push(
+			<p
+				className="my-3 whitespace-pre-wrap [overflow-wrap:anywhere]"
+				key={`p-${String(nodes.length)}`}
+			>
+				{renderInline(trimmed, lookup)}
+			</p>,
+		);
+	}
+	flushList();
+
+	return (
+		<article
+			className={cx(
+				"max-w-none px-4 py-4 text-[15px] leading-7 text-[var(--ink)]",
+				className,
+			)}
+		>
+			{nodes}
+		</article>
+	);
+}

@@ -76,7 +76,7 @@ describe("period digest", () => {
 		);
 	});
 
-	it("collects a deterministic local context hash", () => {
+	it("collects a deterministic local context hash that tracks prompt inputs", () => {
 		const first = collectPeriodDigestContext({
 			since: "2026-01-01T00:00:00.000Z",
 			until: "2027-01-01T00:00:00.000Z",
@@ -91,6 +91,21 @@ describe("period digest", () => {
 		expect(first.hash).toBe(second.hash);
 		expect(first.tweets.length).toBeGreaterThan(0);
 		expect(first.counts.home).toBeGreaterThan(0);
+		const profile = first.tweets[0]?.authorProfile;
+		expect(profile).toBeDefined();
+		getNativeDb()
+			.prepare("update profiles set bio = ?, followers_count = ? where id = ?")
+			.run(
+				"Updated profile context for the digest prompt.",
+				(profile?.followersCount ?? 0) + 1,
+				profile?.id,
+			);
+		const changed = collectPeriodDigestContext({
+			since: "2026-01-01T00:00:00.000Z",
+			until: "2027-01-01T00:00:00.000Z",
+			maxTweets: 20,
+		});
+		expect(changed.hash).not.toBe(first.hash);
 	});
 
 	it("keeps same-day default windows on a stable cache key", () => {

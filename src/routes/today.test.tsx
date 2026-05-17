@@ -11,6 +11,17 @@ import { Route } from "./today";
 
 const TodayRoute = Route.options.component as ComponentType;
 
+const authorProfile = {
+	id: "profile_alice",
+	handle: "alice",
+	displayName: "Alice",
+	bio: "Builds useful things.",
+	followersCount: 1200,
+	followingCount: 200,
+	avatarHue: 42,
+	createdAt: "2020-01-01T00:00:00.000Z",
+};
+
 function digestResult(label: string, markdown: string, includeDms = false) {
 	return {
 		context: {
@@ -29,17 +40,54 @@ function digestResult(label: string, markdown: string, includeDms = false) {
 				dms: includeDms ? 1 : 0,
 				links: 4,
 			},
-			tweets: [],
+			tweets: [
+				{
+					id: "tweet_1",
+					url: "https://x.com/alice/status/tweet_1",
+					source: "mentions",
+					author: "alice",
+					name: "Alice",
+					authorProfile,
+					createdAt: "2026-05-16T10:00:00.000Z",
+					text: "Peter should see this.",
+					likeCount: 12,
+					liked: false,
+					bookmarked: false,
+					needsReply: true,
+				},
+			],
 			dms: [],
 			links: [],
 			hash: label,
 		},
 		digest: {
 			title: label,
-			summary: markdown,
-			keyTopics: [],
-			notableLinks: [],
-			people: [],
+			summary: `${label} summary`,
+			keyTopics: [
+				{
+					title: "Useful signal",
+					summary: "Alice shared something worth a reply.",
+					tweetIds: ["tweet_1"],
+					handles: ["@alice"],
+				},
+			],
+			notableLinks: [
+				{
+					title: "Example",
+					url: "https://example.com",
+					why: "Worth reading.",
+					sourceTweetIds: ["tweet_1"],
+				},
+				{
+					title: "Unsafe",
+					url: "javascript:alert(1)",
+					why: "Should render as inert text.",
+					sourceTweetIds: ["tweet_1"],
+				},
+			],
+			people: [
+				{ handle: "alice", name: "Alice", why: "Shared useful signal." },
+			],
 			actionItems: [
 				{ kind: "reply", label: "Reply to Alice", tweetId: "tweet_1" },
 			],
@@ -79,7 +127,9 @@ describe("today route", () => {
 			const period = url.searchParams.get("period") ?? "today";
 			const includeDms = url.searchParams.get("includeDms") === "true";
 			const label = period === "week" ? "Last 7 days" : "Today";
-			const markdown = includeDms ? "# With DMs" : `# ${label}`;
+			const markdown = includeDms
+				? "# With DMs\n\n- **Reply:** ask @alice about tweet_1"
+				: `# ${label}\n\n- **Reply:** ask @alice about tweet_1`;
 			return ndjsonResponse([
 				{ type: "delta", delta: `${markdown}\n` },
 				{ type: "done", result: digestResult(label, markdown, includeDms) },
@@ -89,21 +139,33 @@ describe("today route", () => {
 
 		render(<TodayRoute />);
 
-		expect(await screen.findByText("# Today")).toBeInTheDocument();
+		expect(await screen.findByText("Today summary")).toBeInTheDocument();
+		expect(screen.getByText("Useful signal")).toBeInTheDocument();
+		expect(screen.getAllByText("Alice").length).toBeGreaterThan(0);
+		expect(screen.queryByText("# Today")).not.toBeInTheDocument();
+		expect(
+			screen.getAllByText((_, element) => element?.textContent === "Today")
+				.length,
+		).toBeGreaterThan(0);
 		expect(
 			screen.getAllByText(
 				(_, element) => element?.textContent === "reply: Reply to Alice",
 			).length,
 		).toBeGreaterThan(0);
+		expect(screen.getByRole("link", { name: "Example" })).toHaveAttribute(
+			"href",
+			"https://example.com/",
+		);
+		expect(screen.getByText("Unsafe").closest("a")).toBeNull();
 		expect(
 			screen.getByText("3 home · 2 mentions · 4 links"),
 		).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("button", { name: "Week" }));
-		expect(await screen.findByText("# Last 7 days")).toBeInTheDocument();
+		expect(await screen.findByText("Last 7 days summary")).toBeInTheDocument();
 
 		fireEvent.click(screen.getByLabelText("DMs"));
-		expect(await screen.findByText("# With DMs")).toBeInTheDocument();
+		expect(await screen.findByText("With DMs")).toBeInTheDocument();
 		expect(
 			screen.getByText("3 home · 2 mentions · 4 links · 1 DMs"),
 		).toBeInTheDocument();

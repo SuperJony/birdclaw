@@ -5,6 +5,7 @@ import { runEffectPromise, tryPromise } from "./effect-runtime";
 import { getLinkInsights } from "./link-insights";
 import { listDmConversations, listTimelineItems } from "./queries";
 import { readSyncCache, writeSyncCache } from "./sync-cache";
+import type { ProfileRecord } from "./types";
 
 export type PeriodDigestPreset = "today" | "yesterday" | "24h" | "week";
 export type PeriodDigestSourceKind =
@@ -103,6 +104,7 @@ interface CompactTweet {
 	source: PeriodDigestSourceKind;
 	author: string;
 	name: string;
+	authorProfile: ProfileRecord;
 	createdAt: string;
 	text: string;
 	likeCount: number;
@@ -277,6 +279,7 @@ function compactTweet(
 		source,
 		author: item.author.handle,
 		name: item.author.displayName,
+		authorProfile: item.author,
 		createdAt: item.createdAt,
 		text: item.text,
 		likeCount: item.likeCount,
@@ -402,9 +405,15 @@ function contextHash(context: Omit<PeriodDigestContext, "hash">) {
 				includeDms: context.includeDms,
 				tweets: context.tweets.map((tweet) => [
 					tweet.id,
+					tweet.url,
 					tweet.source,
+					tweet.author,
+					tweet.name,
+					tweet.authorProfile.bio,
+					tweet.authorProfile.followersCount,
 					tweet.createdAt,
 					tweet.text,
+					tweet.likeCount,
 					tweet.liked,
 					tweet.bookmarked,
 					tweet.needsReply,
@@ -542,6 +551,22 @@ function digestCacheKey(
 }
 
 function buildPrompt(context: PeriodDigestContext) {
+	const promptTweets = context.tweets.map((tweet) => ({
+		id: tweet.id,
+		url: tweet.url,
+		source: tweet.source,
+		author: tweet.author,
+		name: tweet.name,
+		bio: tweet.authorProfile.bio,
+		followersCount: tweet.authorProfile.followersCount,
+		createdAt: tweet.createdAt,
+		text: tweet.text,
+		likeCount: tweet.likeCount,
+		liked: tweet.liked,
+		bookmarked: tweet.bookmarked,
+		needsReply: tweet.needsReply,
+	}));
+
 	return `Window: ${context.window.label}
 Since: ${context.window.since}
 Until: ${context.window.until}
@@ -562,7 +587,7 @@ Requirements:
 Dataset:
 ${JSON.stringify(
 	{
-		tweets: context.tweets,
+		tweets: promptTweets,
 		dms: context.dms,
 		links: context.links,
 	},

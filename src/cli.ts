@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Load .env before anything else so OPENAI_BASE_URL / OPENAI_API_KEY apply.
+import "#/load-env";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path";

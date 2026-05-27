@@ -36,6 +36,22 @@ function trySync<T>(try_: () => T) {
 	});
 }
 
+const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+
+/**
+ * Resolve the OpenAI-compatible API base URL.
+ *
+ * Reads `OPENAI_BASE_URL` (matching the OpenAI SDK convention: the value
+ * includes the version segment, e.g. `https://api.openai.com/v1`) and falls
+ * back to the official endpoint. Callers append the route (`/chat/completions`,
+ * `/responses`). A trailing slash is stripped so concatenation stays clean.
+ */
+export function resolveOpenAIBaseUrl(): string {
+	const raw = process.env.OPENAI_BASE_URL?.trim();
+	const base = raw && raw.length > 0 ? raw : DEFAULT_OPENAI_BASE_URL;
+	return base.replace(/\/+$/, "");
+}
+
 export function scoreInboxItemWithOpenAIEffect(
 	input: OpenAIInboxInput,
 ): Effect.Effect<OpenAIInboxScore, Error> {
@@ -47,7 +63,7 @@ export function scoreInboxItemWithOpenAIEffect(
 
 		const model = process.env.BIRDCLAW_OPENAI_MODEL || "gpt-5.2";
 		const response = yield* tryPromise(() =>
-			fetch("https://api.openai.com/v1/chat/completions", {
+			fetch(`${resolveOpenAIBaseUrl()}/chat/completions`, {
 				method: "POST",
 				headers: {
 					authorization: `Bearer ${apiKey}`,

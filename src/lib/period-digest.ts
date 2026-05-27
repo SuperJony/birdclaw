@@ -6,6 +6,7 @@ import { runEffectPromise, tryPromise } from "./effect-runtime";
 import { getLinkInsights } from "./link-insights";
 import { syncMentionThreadsEffect } from "./mention-threads-live";
 import { syncMentionsEffect } from "./mentions-live";
+import { resolveOpenAIBaseUrl } from "./openai";
 import { listDmConversations, listTimelineItems } from "./queries";
 import { readSyncCache, writeSyncCache } from "./sync-cache";
 import { syncHomeTimelineEffect, type HomeTimelineMode } from "./timeline-live";
@@ -1275,7 +1276,7 @@ export function streamPeriodDigestEffect(
 		handlers.onEvent?.({ type: "start", context, cached: false });
 		emitDigestStatus(handlers, "Streaming AI summary");
 		const response = yield* tryDigestPromise(() =>
-			fetch("https://api.openai.com/v1/responses", {
+			fetch(`${resolveOpenAIBaseUrl()}/responses`, {
 				method: "POST",
 				signal: options.signal,
 				headers: {

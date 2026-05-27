@@ -8,6 +8,7 @@ import {
 	tryPromise,
 } from "./effect-runtime";
 import { getNativeDb } from "./db";
+import { resolveOpenAIBaseUrl } from "./openai";
 import { listDmConversations, listTimelineItems } from "./queries";
 import { readSyncCache, writeSyncCache } from "./sync-cache";
 import {
@@ -976,7 +977,7 @@ export function streamSearchDiscussionEffect(
 
 		handlers.onEvent?.({ type: "start", context, cached: false });
 		const response = yield* trySearchPromise(() =>
-			fetch("https://api.openai.com/v1/responses", {
+			fetch(`${resolveOpenAIBaseUrl()}/responses`, {
 				method: "POST",
 				signal: options.signal,
 				headers: {

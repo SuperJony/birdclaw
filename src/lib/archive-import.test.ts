@@ -2889,6 +2889,28 @@ describe("archive import", () => {
 		]);
 	});
 
+	it("parses zipinfo entries whose host type is unknown (X archives)", () => {
+		// X/Twitter archives report an unknown host type, so zipinfo prints the
+		// permission token as "?rwx------" instead of "-"/"d". Regression: these
+		// rows (which carry all bundled media) must not be dropped, while the
+		// header and summary lines stay excluded.
+		const stdout = [
+			"Archive:  /tmp/twitter.zip",
+			"Zip file size: 1217629229 bytes, number of entries: 4",
+			"?rwx------  4.5 unx        0 bX        2 defN 26-May-28 09:33 data/",
+			"?rw-------  4.5 unx 269893167 bX    12460 defN 26-May-28 09:35 data/tweets_media/1637-clip.mp4",
+			"-rw-r--r--  3.0 unx        5 tx        5 stor 26-Jun-02 14:29 data/account.js",
+			"?rw-------  4.5 unx       42 bX       20 defN 26-May-28 09:33 data/has space.txt",
+			"4 files, 5 bytes uncompressed, 5 bytes compressed:  0.0%",
+		].join("\n");
+		expect(__test__.parseZipinfoLongListing(stdout)).toEqual([
+			{ path: "data/", size: 0 },
+			{ path: "data/tweets_media/1637-clip.mp4", size: 269893167 },
+			{ path: "data/account.js", size: 5 },
+			{ path: "data/has space.txt", size: 42 },
+		]);
+	});
+
 	it("throws when account.js is missing", async () => {
 		const archivePath = makeArchiveWithoutAccount();
 		const homeDir = mkdtempSync(path.join(os.tmpdir(), "birdclaw-home-"));

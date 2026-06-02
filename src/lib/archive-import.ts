@@ -176,6 +176,23 @@ function listArchiveEntriesEffect(
 	});
 }
 
+function parseZipinfoLongListing(
+	stdout: string,
+): Array<{ path: string; size: number }> {
+	return stdout
+		.split("\n")
+		.map((line) => line.trim().split(/\s+/))
+		// zipinfo prefixes each entry with a type+permission token; X/Twitter
+		// archives report an unknown host type as "?rwx------", so accept "?"
+		// alongside the regular "-" (file) and "d" (directory) markers.
+		.filter((parts) => parts.length >= 10 && /^[-d?]/.test(parts[0] ?? ""))
+		.map((parts) => ({
+			path: parts.slice(9).join(" "),
+			size: Number(parts[3] ?? 0),
+		}))
+		.filter((entry) => entry.path.length > 0 && Number.isFinite(entry.size));
+}
+
 function listArchiveEntryDetailsEffect(
 	archivePath: string,
 ): Effect.Effect<Array<{ path: string; size: number }>, unknown> {
@@ -185,15 +202,7 @@ function listArchiveEntryDetailsEffect(
 			["-Z", "-l", archivePath],
 			1024 * 1024 * 64,
 		);
-		return stdout
-			.split("\n")
-			.map((line) => line.trim().split(/\s+/))
-			.filter((parts) => parts.length >= 10 && /^[-d]/.test(parts[0] ?? ""))
-			.map((parts) => ({
-				path: parts.slice(9).join(" "),
-				size: Number(parts[3] ?? 0),
-			}))
-			.filter((entry) => entry.path.length > 0 && Number.isFinite(entry.size));
+		return parseZipinfoLongListing(stdout);
 	});
 }
 
@@ -2746,6 +2755,7 @@ export function importArchive(
 
 export const __test__ = {
 	normalizeArchivePath,
+	parseZipinfoLongListing,
 	extractArchiveJson,
 	parseArchiveArray,
 	getFirstEntry,
